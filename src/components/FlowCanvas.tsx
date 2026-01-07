@@ -64,8 +64,6 @@ const defaultEdgeStyle = {
   style: {
     strokeWidth: 1.5,
     stroke: "#51a2ff",
-    opacity: 0.8,
-    filter: "drop-shadow(0 0 5px rgba(81, 162, 255, 0.5))",
   },
 };
 
@@ -260,7 +258,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
           }
         }}
       >
-        <StyledBackground variant={BackgroundVariant.Dots} gap={20} size={1} />
+        <StyledBackground variant={BackgroundVariant.Dots} gap={20} size={1} animated={false} />
         <MiniMap zoomable pannable style={{ position: "absolute", bottom: 20, right: 0 }} />
         <Controls style={{ position: "absolute", bottom: 20, left: 0 }}>
           <SelectionPanToggle

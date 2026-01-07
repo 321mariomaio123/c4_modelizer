@@ -46,8 +46,8 @@ const createEdgeStyle = (
   technology: Technology | undefined
 ) => ({
   ...style,
-  animation: isBidirectional ? "none" : style?.animation,
   stroke: technology?.color,
+  strokeDasharray: "8,6",
 });
 
 function cubicBezierPoint(
@@ -114,8 +114,6 @@ const TechnologyEdge: React.FC<EdgeProps> = ({
     bezierY = cubicBezierPoint(t, y1, y2, y3, y4);
   }
 
-  // {markerEnd: "url('#1__color=#51a2ff&height=18&type=arrowclosed&width=18')"}markerEnd: "url('#1__color=#51a2ff&height=18&type=arrowclosed&width=18')"[[Prototype]]: Object
-
   return (
     <>
       <BaseEdge
@@ -123,6 +121,7 @@ const TechnologyEdge: React.FC<EdgeProps> = ({
         path={edgePath}
         markerStart={isBidirectional ? markerStart : undefined}
         markerEnd={markerEnd}
+        className={!isBidirectional ? "c4-animated-edge" : undefined}
         style={createEdgeStyle(style, isBidirectional, technology)}
       />
       <EdgeLabelRenderer>
