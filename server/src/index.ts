@@ -1,8 +1,94 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { Pool } from "pg";
-import crypto from "crypto";
+import { createUuid } from "./uuid.js";
 
-export const createEmptyModel = () => ({
+type ViewLevel = "system" | "container" | "component" | "code";
+
+interface FlatC4Model {
+  systems: unknown[];
+  containers: unknown[];
+  components: unknown[];
+  codeElements: unknown[];
+  viewLevel: ViewLevel;
+  activeSystemId?: string;
+  activeContainerId?: string;
+  activeComponentId?: string;
+}
+
+type QueryResult<Row> = { rows: Row[]; rowCount?: number };
+type PoolQuery = <Row = unknown>(
+  text: string,
+  params?: unknown[]
+) => Promise<QueryResult<Row>>;
+
+interface PoolClientLike {
+  query: PoolQuery;
+  release: () => void;
+}
+
+export interface PoolLike {
+  query: PoolQuery;
+  connect: () => Promise<PoolClientLike>;
+}
+
+interface ProjectRow {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  model_count?: string | number | null;
+  modelCount?: string | number | null;
+}
+
+interface ProjectSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  modelCount: number;
+}
+
+interface ModelRow {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  model_data?: unknown;
+}
+
+interface ModelSummary {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  model?: unknown;
+}
+
+interface RestoreProject {
+  id: string;
+  name: string;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface RestoreModel {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string | null;
+  model?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const createEmptyModel = (): FlatC4Model => ({
   systems: [],
   containers: [],
   components: [],
@@ -10,23 +96,32 @@ export const createEmptyModel = () => ({
   viewLevel: "system",
 });
 
-const parseJson = (value) => {
+const parseJson = (value: unknown): unknown => {
   if (typeof value === "string") {
     return JSON.parse(value);
   }
   return value;
 };
 
-const mapProjectRow = (row) => ({
+const parseCount = (value: string | number | null | undefined): number => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+};
+
+const mapProjectRow = (row: ProjectRow): ProjectSummary => ({
   id: row.id,
   name: row.name,
   description: row.description,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
-  modelCount: Number.parseInt(row.model_count ?? row.modelCount ?? "0", 10),
+  modelCount: parseCount(row.model_count ?? row.modelCount),
 });
 
-const mapModelRow = (row) => ({
+const mapModelRow = (row: ModelRow): ModelSummary => ({
   id: row.id,
   projectId: row.project_id,
   name: row.name,
@@ -36,15 +131,19 @@ const mapModelRow = (row) => ({
   model: row.model_data ? parseJson(row.model_data) : undefined,
 });
 
-const asyncHandler = (handler) => async (req, res, next) => {
-  try {
-    await handler(req, res, next);
-  } catch (error) {
-    next(error);
-  }
+type AsyncHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => Promise<void>;
+
+const asyncHandler = (handler: AsyncHandler) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    handler(req, res, next).catch(next);
+  };
 };
 
-export const ensureSchema = async (pool) => {
+export const ensureSchema = async (pool: PoolLike) => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS projects (
       id uuid PRIMARY KEY,
@@ -70,11 +169,11 @@ export const ensureSchema = async (pool) => {
   `);
 };
 
-export const createApp = ({ pool }) => {
+export const createApp = ({ pool }: { pool: PoolLike }) => {
   const app = express();
   app.use(express.json({ limit: "25mb" }));
 
-  app.use((err, _req, res, next) => {
+  app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof SyntaxError) {
       res.status(400).json({ error: "Invalid JSON payload." });
       return;
@@ -99,7 +198,7 @@ export const createApp = ({ pool }) => {
   app.get(
     "/api/projects",
     asyncHandler(async (_req, res) => {
-      const result = await pool.query(`
+      const result = await pool.query<ProjectRow>(`
         SELECT p.id, p.name, p.description, p.created_at, p.updated_at,
                COUNT(m.id) AS model_count
         FROM projects p
@@ -119,8 +218,8 @@ export const createApp = ({ pool }) => {
         res.status(400).json({ error: "Project name is required." });
         return;
       }
-      const id = crypto.randomUUID();
-      const result = await pool.query(
+      const id = createUuid();
+      const result = await pool.query<ProjectRow>(
         `
           INSERT INTO projects (id, name, description)
           VALUES ($1, $2, $3)
@@ -141,7 +240,7 @@ export const createApp = ({ pool }) => {
         res.status(400).json({ error: "Project name is required." });
         return;
       }
-      const result = await pool.query(
+      const result = await pool.query<ProjectRow>(
         `
           UPDATE projects
           SET name = $2, description = $3, updated_at = now()
@@ -177,7 +276,7 @@ export const createApp = ({ pool }) => {
     "/api/projects/:projectId/models",
     asyncHandler(async (req, res) => {
       const { projectId } = req.params;
-      const result = await pool.query(
+      const result = await pool.query<ModelRow>(
         `
           SELECT id, project_id, name, description, created_at, updated_at
           FROM models
@@ -199,9 +298,9 @@ export const createApp = ({ pool }) => {
         res.status(400).json({ error: "Model name is required." });
         return;
       }
-      const id = crypto.randomUUID();
+      const id = createUuid();
       const modelData = model ?? createEmptyModel();
-      const result = await pool.query(
+      const result = await pool.query<ModelRow>(
         `
           INSERT INTO models (id, project_id, name, description, model_data)
           VALUES ($1, $2, $3, $4, $5::jsonb)
@@ -217,7 +316,7 @@ export const createApp = ({ pool }) => {
     "/api/models/:modelId",
     asyncHandler(async (req, res) => {
       const { modelId } = req.params;
-      const result = await pool.query(
+      const result = await pool.query<ModelRow>(
         `
           SELECT id, project_id, name, description, created_at, updated_at, model_data
           FROM models
@@ -238,8 +337,8 @@ export const createApp = ({ pool }) => {
     asyncHandler(async (req, res) => {
       const { modelId } = req.params;
       const { name, description, model } = req.body ?? {};
-      const updates = [];
-      const values = [modelId];
+      const updates: string[] = [];
+      const values: Array<string | null> = [modelId];
       let index = 2;
 
       if (typeof name === "string") {
@@ -264,7 +363,7 @@ export const createApp = ({ pool }) => {
       }
 
       updates.push("updated_at = now()");
-      const result = await pool.query(
+      const result = await pool.query<ModelRow>(
         `
           UPDATE models
           SET ${updates.join(", ")}
@@ -299,10 +398,10 @@ export const createApp = ({ pool }) => {
   app.get(
     "/api/backup",
     asyncHandler(async (_req, res) => {
-      const projectsResult = await pool.query(
+      const projectsResult = await pool.query<ProjectRow>(
         "SELECT id, name, description, created_at, updated_at FROM projects"
       );
-      const modelsResult = await pool.query(
+      const modelsResult = await pool.query<ModelRow>(
         "SELECT id, project_id, name, description, created_at, updated_at, model_data FROM models"
       );
 
@@ -337,7 +436,7 @@ export const createApp = ({ pool }) => {
         await client.query("DELETE FROM models");
         await client.query("DELETE FROM projects");
 
-        for (const project of projects) {
+        for (const project of projects as RestoreProject[]) {
           await client.query(
             `
               INSERT INTO projects (id, name, description, created_at, updated_at)
@@ -353,7 +452,7 @@ export const createApp = ({ pool }) => {
           );
         }
 
-        for (const model of models) {
+        for (const model of models as RestoreModel[]) {
           await client.query(
             `
               INSERT INTO models (id, project_id, name, description, model_data, created_at, updated_at)
@@ -382,7 +481,7 @@ export const createApp = ({ pool }) => {
     })
   );
 
-  app.use((error, _req, res, _next) => {
+  app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
     // eslint-disable-next-line no-console
     console.error(error);
     res.status(500).json({ error: "Internal server error." });
@@ -391,12 +490,16 @@ export const createApp = ({ pool }) => {
   return app;
 };
 
-export const createPool = () =>
+export const createPool = (): PoolLike =>
   new Pool({
     connectionString: process.env.DATABASE_URL,
   });
 
-if (import.meta.url === new URL(process.argv[1], "file://").href) {
+const mainUrl = process.argv[1]
+  ? new URL(process.argv[1], "file://").href
+  : null;
+
+if (mainUrl && import.meta.url === mainUrl) {
   const pool = createPool();
   const port = Number.parseInt(process.env.PORT || "3000", 10);
   const app = createApp({ pool });

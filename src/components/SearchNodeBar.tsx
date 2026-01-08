@@ -9,6 +9,7 @@ import {
   useFlatModelActions,
   useFlatSearch,
 } from "@archivisio/c4-modelizer-sdk";
+import { createUuid } from "@utils/uuid";
 import { useRef } from "react";
 import Draggable from "react-draggable";
 import {
@@ -60,7 +61,7 @@ const SearchNodeBar: React.FC = () => {
     if (!connectionState.fromNode?.id) return;
 
     const sourceNodeId = connectionState.fromNode.id;
-    const id = crypto.randomUUID();
+    const id = createUuid();
 
     addElement({
       id,

@@ -139,7 +139,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
                 color={status?.db.status === "ok" ? "success" : "error"}
               />
               {status?.db.latencyMs !== undefined && (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
                   {t("latency_ms", { value: status.db.latencyMs })}
                 </Typography>
               )}
@@ -162,7 +162,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onBack }) => {
             <Typography variant="h6" sx={{ mb: 1 }}>
               {t("backup_restore")}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mb: 2 }}>
               {t("restore_warning")}
             </Typography>
             <Stack direction="row" spacing={2} flexWrap="wrap">

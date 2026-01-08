@@ -1,39 +1,47 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createApp, createEmptyModel } from "../src/index.js";
+import { createApp, createEmptyModel, type PoolLike } from "../src/index.ts";
 
-const createMockPool = () => {
-  const queryCalls = [];
-  const queue = [];
-  const pool = {
-    queryCalls,
-    queue,
-    query: async (...args) => {
-      queryCalls.push(args);
-      return queue.length ? queue.shift() : { rows: [] };
+type QueueItem<Row> = { rows: Row[]; rowCount?: number };
+
+const createMockPool = (): PoolLike & {
+  queryCalls: Array<[string, unknown[]?]>;
+  queue: Array<QueueItem<unknown>>;
+} => {
+  const queryCalls: Array<[string, unknown[]?]> = [];
+  const queue: Array<QueueItem<unknown>> = [];
+  const pool: PoolLike = {
+    query: async (text, params) => {
+      queryCalls.push([text, params]);
+      if (queue.length) {
+        return queue.shift() as QueueItem<unknown>;
+      }
+      return { rows: [] };
     },
     connect: async () => ({
-      queryCalls: [],
-      query: async () => ({}),
+      query: async () => ({} as QueueItem<unknown>),
       release: () => {},
     }),
   };
-  return pool;
+  return { ...pool, queryCalls, queue };
 };
 
-const startServer = async (pool) => {
+const startServer = async (pool: PoolLike) => {
   const app = createApp({ pool });
-  return new Promise((resolve) => {
-    const server = app.listen(0, () => {
-      const { port } = server.address();
-      resolve({ server, baseUrl: `http://127.0.0.1:${port}` });
-    });
-  });
+  return new Promise<{ server: import("http").Server; baseUrl: string }>(
+    (resolve) => {
+      const server = app.listen(0, () => {
+        const address = server.address();
+        const port = typeof address === "string" ? 0 : address?.port ?? 0;
+        resolve({ server, baseUrl: `http://127.0.0.1:${port}` });
+      });
+    }
+  );
 };
 
 test("returns status ok when database responds", async () => {
   const pool = createMockPool();
-  pool.queue.push({});
+  pool.queue.push({ rows: [] });
 
   const { server, baseUrl } = await startServer(pool);
   try {
@@ -42,7 +50,7 @@ test("returns status ok when database responds", async () => {
 
     assert.equal(response.status, 200);
     assert.equal(body.db.status, "ok");
-    assert.deepEqual(pool.queryCalls[0], ["SELECT 1"]);
+    assert.deepEqual(pool.queryCalls[0], ["SELECT 1", undefined]);
   } finally {
     server.close();
   }
@@ -151,10 +159,10 @@ test("rejects model creation without name", async () => {
 
 test("restores backup data", async () => {
   const pool = createMockPool();
-  const clientCalls = [];
+  const clientCalls: Array<[string, unknown[]?]> = [];
   const client = {
-    query: async (...args) => {
-      clientCalls.push(args);
+    query: async (text: string, params?: unknown[]) => {
+      clientCalls.push([text, params]);
       return {};
     },
     release: () => {
@@ -196,10 +204,10 @@ test("restores backup data", async () => {
 
     assert.equal(response.status, 200);
     assert.equal(body.status, "ok");
-    assert.deepEqual(clientCalls[0], ["BEGIN"]);
-    assert.deepEqual(clientCalls[1], ["DELETE FROM models"]);
-    assert.deepEqual(clientCalls[2], ["DELETE FROM projects"]);
-    assert.deepEqual(clientCalls[clientCalls.length - 1], ["COMMIT"]);
+    assert.deepEqual(clientCalls[0], ["BEGIN", undefined]);
+    assert.deepEqual(clientCalls[1], ["DELETE FROM models", undefined]);
+    assert.deepEqual(clientCalls[2], ["DELETE FROM projects", undefined]);
+    assert.deepEqual(clientCalls[clientCalls.length - 1], ["COMMIT", undefined]);
     assert.equal(client.released, true);
   } finally {
     server.close();
