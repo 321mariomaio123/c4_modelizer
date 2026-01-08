@@ -79,7 +79,10 @@ const TechnologyEdge: React.FC<EdgeProps> = ({
   markerStart,
   ...props
 }) => {
-  const isBidirectional = props.data?.bidirectional === true;
+  const isBidirectional =
+    props.data?.bidirectional === true ||
+    props.data?.bidirectional === "true" ||
+    props.data?.bidirectional === 1;
 
   const edgePathParams = {
     sourceX,

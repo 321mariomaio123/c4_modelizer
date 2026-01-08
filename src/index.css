@@ -107,3 +107,14 @@ button:focus-visible {
   width: 16px !important;
   height: 16px !important;
 }
+
+@keyframes edge-dash-animate {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+.c4-animated-edge {
+  animation: edge-dash-animate 1.2s linear infinite;
+  will-change: stroke-dashoffset;
+}

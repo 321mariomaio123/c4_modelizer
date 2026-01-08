@@ -185,9 +185,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   const preparedEdges = edges.map((edge) => {
     const technologyId = (edge.data &&
       (edge.data.technology || edge.data.technologyId)) as string | undefined;
+    const isBidirectional =
+      edge.data?.bidirectional === true ||
+      edge.data?.bidirectional === "true" ||
+      edge.data?.bidirectional === 1;
     return {
       ...edge,
       type: "technology",
+      animated: isBidirectional ? false : edge.animated ?? true,
       data: {
         ...edge.data,
         technologyId,

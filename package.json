@@ -17,6 +17,7 @@
     "test:ci": "cypress run"
   },
   "dependencies": {
+    "@archivisio/c4-modelizer-sdk": "1.0.0",
     "@auth0/auth0-react": "^2.3.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -25,7 +26,6 @@
     "@tanstack/react-query": "^5.79.0",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@xyflow/react": "^12.6.0",
-    "@archivisio/c4-modelizer-sdk": "1.0.0",
     "devicons-react": "^1.4.1",
     "i18next": "^25.0.1",
     "prismjs": "^1.30.0",
@@ -45,6 +45,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "baseline-browser-mapping": "^2.9.12",
     "cypress": "^14.3.2",
     "cypress-file-upload": "^5.0.8",
     "cypress-vite": "^1.6.0",
