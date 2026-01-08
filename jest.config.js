@@ -4,7 +4,9 @@ export default {
   testEnvironment: "jsdom",
   verbose: true,
   setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
+  testPathIgnorePatterns: ["/node_modules/", "/server/"],
   moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/src/$1",
     "^@components/(.*)$": "<rootDir>/src/components/$1",
     "^@assets/(.*)$": "<rootDir>/src/assets/$1",
     "^@contexts/(.*)$": "<rootDir>/src/contexts/$1",

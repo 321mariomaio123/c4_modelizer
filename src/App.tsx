@@ -17,9 +17,13 @@ import ConnectionEditDialog from "@components/ConnectionEditDialog";
 import ContainerEditDialog from "@components/container/ContainerEditDialog";
 import ErrorNotification from "@components/ErrorNotification";
 import FlowCanvas from "@components/FlowCanvas";
+import ModelEmptyState from "@components/projects/ModelEmptyState";
+import ProjectManagerDialog from "@components/projects/ProjectManagerDialog";
+import SettingsPage from "@components/settings/SettingsPage";
 import SearchNodeBar from "@components/SearchNodeBar";
 import SystemEditDialog from "@components/system/SystemEditDialog";
 import { useDialogs } from "@contexts/DialogContext";
+import { useProjects } from "@contexts/ProjectContext";
 import { useFileOperations } from "@hooks/useFileOperations";
 import { Box } from "@mui/material";
 import FooterSlot from "@slots/FooterSlot";
@@ -27,11 +31,22 @@ import NavBarSlot from "@slots/NavBarSlot";
 import ToolbarSlot from "@slots/ToolbarSlot";
 import { ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import "./i18n";
 
 function App() {
   const resetButtonRef = useRef<HTMLButtonElement>(null);
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const {
+    activeProject,
+    activeModel,
+    isLoadingModel,
+    isLoadingModels,
+    isLoadingProjects,
+    error: projectError,
+    saveStatus,
+  } = useProjects();
   const {
     navigateToContainer,
     navigateToComponent,
@@ -140,6 +155,13 @@ function App() {
     }, 100);
   };
 
+  if (settingsOpen) {
+    return <SettingsPage onBack={() => setSettingsOpen(false)} />;
+  }
+
+  const isEditorReady = Boolean(activeModel) && !isLoadingModel;
+  const isModelLoading = isLoadingModel || isLoadingModels || isLoadingProjects;
+
   return (
     <ReactFlowProvider>
       <Box sx={{ height: "100vh", bgcolor: "#0a1929", color: "#fff" }}>
@@ -148,6 +170,12 @@ function App() {
           onExport={handleExport}
           onImport={handleImport}
           onReset={handleOpenResetDialog}
+          onOpenProjects={() => setProjectDialogOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          currentProjectName={activeProject?.name}
+          currentModelName={activeModel?.name}
+          actionsDisabled={!isEditorReady}
+          saveStatus={saveStatus}
           model={model}
           ref={resetButtonRef}
         />
@@ -170,15 +198,22 @@ function App() {
           componentName={activeComponent?.name}
         />
 
-        <FlowCanvas
-          nodes={currentNodes}
-          edges={edges}
-          onConnect={onConnect}
-          onNodePositionChange={handleNodePositionChange}
-          viewLevel={model.viewLevel}
-          onNodeDoubleClick={handleNodeDoubleClick}
-          onEdgeClick={handleEdgeClick}
-        />
+        {isEditorReady ? (
+          <FlowCanvas
+            nodes={currentNodes}
+            edges={edges}
+            onConnect={onConnect}
+            onNodePositionChange={handleNodePositionChange}
+            viewLevel={model.viewLevel}
+            onNodeDoubleClick={handleNodeDoubleClick}
+            onEdgeClick={handleEdgeClick}
+          />
+        ) : (
+          <ModelEmptyState
+            isLoading={isModelLoading}
+            onOpenProjects={() => setProjectDialogOpen(true)}
+          />
+        )}
 
         {model.viewLevel === "system" && editingElement && (
           <SystemEditDialog
@@ -284,8 +319,8 @@ function App() {
           />
         )}
 
-        <SearchNodeBar />
-        <ErrorNotification message={notificationError} />
+        {isEditorReady && <SearchNodeBar />}
+        <ErrorNotification message={notificationError || projectError} />
 
         {connectionDialogOpen && (
           <ConnectionEditDialog
@@ -303,6 +338,10 @@ function App() {
           />
         )}
         <FooterSlot />
+        <ProjectManagerDialog
+          open={projectDialogOpen}
+          onClose={() => setProjectDialogOpen(false)}
+        />
       </Box>
     </ReactFlowProvider>
   );

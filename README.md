@@ -55,6 +55,16 @@ C4 Modelizer features a powerful plugin system for extending functionality. For 
 
 ## 🔧️ Setup & Usage
 
+### Docker Compose (full stack)
+
+```bash
+$ docker compose up --build
+```
+
+Open [http://localhost:8080](http://localhost:8080) in your browser.
+
+The PostgreSQL service is internal only and not exposed on the host.
+
 ### Using Docker (recommended)
 
 ```bash

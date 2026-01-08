@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: c4_modelizer
+      POSTGRES_USER: c4_user
+      POSTGRES_PASSWORD: c4_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U c4_user -d c4_modelizer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./server
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://c4_user:c4_password@db:5432/c4_modelizer
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.public
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  db_data:

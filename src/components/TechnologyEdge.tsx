@@ -42,7 +42,6 @@ const EdgeLabel = styled("span")(() => ({
 
 const createEdgeStyle = (
   style: React.CSSProperties | undefined,
-  isBidirectional: boolean,
   technology: Technology | undefined
 ) => ({
   ...style,
@@ -125,7 +124,7 @@ const TechnologyEdge: React.FC<EdgeProps> = ({
         markerStart={isBidirectional ? markerStart : undefined}
         markerEnd={markerEnd}
         className={!isBidirectional ? "c4-animated-edge" : undefined}
-        style={createEdgeStyle(style, isBidirectional, technology)}
+        style={createEdgeStyle(style, technology)}
       />
       <EdgeLabelRenderer>
         <EdgeLabelContainer

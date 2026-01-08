@@ -1,4 +1,5 @@
 import { DialogProvider } from '@contexts/DialogProvider.tsx'
+import { ProjectProvider } from '@contexts/ProjectContext.tsx'
 import { ThemeProvider } from '@mui/material/styles'
 import { loadPlugins } from '@plugins/manager'
 import PortalTarget from '@slots/PortalTarget.tsx'
@@ -14,9 +15,11 @@ loadPlugins().then(() => {
     <StrictMode>
       <ThemeProvider theme={theme}>
         <RootProviderSlot>
-          <DialogProvider>
-            <App />
-          </DialogProvider>
+          <ProjectProvider>
+            <DialogProvider>
+              <App />
+            </DialogProvider>
+          </ProjectProvider>
         </RootProviderSlot>
         <PortalTarget id="global-overlay" />
       </ThemeProvider>
